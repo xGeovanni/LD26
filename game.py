@@ -124,7 +124,6 @@ class Game():
             self.oldDirtyRects = self.dirtyRects
             self.dirtyRects = []
             
-            
             self.update()
             
             if not self.renderer:

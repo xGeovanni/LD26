@@ -1,19 +1,28 @@
 # Grid library for Pygame by Bobby Clarke
 # GNU General Public License 3.0
 
-# Version 1.1.1
+# Version 1.1
 
 import pygame
 import math
+from fractions import gcd
+from functools import reduce
 
 def _isEven(i):
     return i % 2 == 0
+
+def product(_list):
+    return reduce(lambda x, y: x * y, _list, 1)
 
 def _range(start, stop, step=1):
     """Range function which can handle floats."""
     while start < stop:
         yield start
         start += step
+        
+def _simplify(a, b):
+    hcf = gcd(a, b)
+    return (a / hcf, b / hcf)
 
 class Tile(pygame.Rect):
     def __init__(self, point, size, colour = None, imgs = [], tags = []):
@@ -66,7 +75,10 @@ class Tile(pygame.Rect):
     def getPoint(self):
         return self.point
     def addTag(self, *tags):
-        self.tags.extend(tags)
+        if isinstance(tags[0], list):
+            self.tags.extend(tags[0])
+        else:
+            self.tags.extend(tags)
     def hasTag(self, tag):
         return (tag in self.tags)
     def delTag(self, tag):
@@ -78,7 +90,7 @@ class Tile(pygame.Rect):
             if img.get_rect() != self and resize:
                 img = pygame.transform.scale(img, (self.size))
             self.imgs.append(img)
-        else:
+        elif img is not None:
             raise TypeError("Images must be pygame.Surface object")
     def delImg(self, img):
         self.imgs.remove(img)
@@ -95,14 +107,22 @@ class Tile(pygame.Rect):
             surface.blit(img, self)
 
 class Grid():
-    def __init__(self, surface, num, colour = None, tiles = None):
+    def __init__(self, surface, num, colour = None, tiles = None, 
+                 force_square = False):
         self.WIDTH = surface.get_width()
         self.HEIGHT = surface.get_height()
         self.surface = surface
 
+        aspect_ratio = _simplify(self.WIDTH, self.HEIGHT)
+
         if isinstance(num, int):
-            self.x = math.sqrt(num)
-            self.y = math.sqrt(num)
+            if aspect_ratio == (1, 1) or force_square:
+                self.x = math.sqrt(num)
+                self.y = math.sqrt(num)
+            
+            else:            
+                self.x = aspect_ratio[0] * (num / product(aspect_ratio))
+                self.y = aspect_ratio[1] * (num / product(aspect_ratio))
         else:
             try:
                 self.x = num[0]
@@ -220,15 +240,16 @@ class Grid():
             if ni >= 0 and nj >= 0 and ni <= max_x and nj <= max_y:
                 surroundingTiles.append(self[ni][nj])
 
+        surroundingTiles.reverse()
+
         return sorted(surroundingTiles)
 
     def draw(self, drawGrid = False, gridColour = (0, 0, 0), gridSize = 1):
         for tile in self.getTiles():
             tile.draw(self.surface)
-
+            
             if drawGrid:
                 pygame.draw.rect(self.surface, gridColour, tile, gridSize)
-
                 
     def maketiles(self, colour):
         """Make the tiles for the grid"""
@@ -256,6 +277,3 @@ class Grid():
 
     def fromData(data, surface):
         return Grid(*([surface] + list(data)))
-        
-        
-        
