@@ -55,6 +55,7 @@ class Game():
         self.fillcolour = fillcolour
         
         self.returnValue = None
+        self.paused = False
         self.dirtyRects = []
         self.oldDirtyRects = []
         
@@ -117,7 +118,7 @@ class Game():
         if self.renderer:
             self.renderer.start()
         
-        while True:
+        while not self.ended:
             
             self.deltaTime = self.clock.tick(self.FRAMERATE) / 1000
                 
@@ -134,8 +135,11 @@ class Game():
             
             if self.returnValue is not None:
                 return self.returnValue
+            
+    def end(self,):
+        self.ended = True
     
     def quit(self):
-        self.ended = True
+        self.end()
         pygame.quit()
         sys.exit(0)
