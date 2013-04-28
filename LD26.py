@@ -14,6 +14,7 @@ BRIGHT_RED = (255, 32, 32)
 GREEN = (0, 200, 0)
 
 SOUNDS_FOLDER = "Sounds/"
+SCREENS_FOLDER = "Screens/"
 
 SOUNDS = {"hurt" : pygame.mixer.Sound(SOUNDS_FOLDER + "Hit_Hurt9.ogg"),
           "shoot" : pygame.mixer.Sound(SOUNDS_FOLDER + "Laser_Shoot25.ogg")}
@@ -562,6 +563,27 @@ class MinimalDeathmatch(game.Game):
                 sound.set_volume(0)
             pygame.mixer.music.set_volume(0)
             self.muted = True
+            
+    def title(self):
+        if self.aspectRatio == (4, 3):
+            img = pygame.image.load(SCREENS_FOLDER + "Title4x3.png").convert()
+            
+        else:
+            img = pygame.image.load(SCREENS_FOLDER + "Title16x9.png").convert()
+            #Using 16x9 as default.
+            
+        img = pygame.transform.scale(img, (self.WIDTH, self.HEIGHT))
+                                     
+        self.screen.blit(img, (0, 0))
+        pygame.display.update()
+        
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.quit()
+                             
+                elif event.type == pygame.KEYDOWN:
+                    return
         
     def gameOver(self, fadeout = 3000):
         pygame.mixer.music.fadeout(fadeout)
