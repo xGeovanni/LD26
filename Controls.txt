@@ -1,0 +1,3 @@
+WASD / Arrows - Movement
+Click - shoot
+M - Toggle mute

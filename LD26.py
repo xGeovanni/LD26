@@ -17,7 +17,8 @@ SOUNDS_FOLDER = "Sounds/"
 SCREENS_FOLDER = "Screens/"
 
 SOUNDS = {"hurt" : pygame.mixer.Sound(SOUNDS_FOLDER + "Hit_Hurt9.ogg"),
-          "shoot" : pygame.mixer.Sound(SOUNDS_FOLDER + "Laser_Shoot25.ogg")}
+          "shoot" : pygame.mixer.Sound(SOUNDS_FOLDER + "Laser_Shoot25.ogg"),
+          "squelch" : pygame.mixer.Sound(SOUNDS_FOLDER + "Powerup10.ogg")}
 
 for sound in SOUNDS.values():
     sound.set_volume(0.5)
@@ -117,7 +118,7 @@ class Player(Entity):
             bulletDirection = (pygame.math.Vector2(pygame.mouse.get_pos()) - self.midpoint).normalize()
             
             self.bm.addBullet(Bullet(self.md, self.midpoint, bulletDirection))
-            SOUNDS["shoot"].play()
+            #SOUNDS["shoot"].play()
             
         except ValueError:
             pass #Tried to normalize vector of (0, 0)
@@ -244,6 +245,8 @@ class BulletManager():
                 if bullet.rect.colliderect(self.md.player.rect):
                     self.md.player.damage(bullet.damage / 2)
                     self.delBullet(bullet)
+                    
+    
             
     def draw(self):
         for bullet in self.bullets:
@@ -262,7 +265,7 @@ class Enemy(Entity):
         self.baseTimeUntilFire = .5
         self.timeUntilFire = self.baseTimeUntilFire
         
-        Entity.__init__(self, md, x, y, colour, size, speed, sigma = 10)
+        Entity.__init__(self, md, x, y, colour, size, speed, sigma = 20)
         
     def calcDirection(self):
         return (self.md.player.pos - self.pos).normalize()
@@ -270,8 +273,7 @@ class Enemy(Entity):
     def specificUpdate(self):
         pass
     
-    def update(self):        
-        self.direction = self.calcDirection()
+    def update(self):
         self.move()
         
         if self.fireChance:
@@ -325,16 +327,16 @@ class Slime(Enemy):
         self.upperSize = self.rect.size[1]
         self.lowerSize = self.rect.size[1] * 0.75
         
-        self.animationLength = 120 #Frames
+        self.animationLength = 1 #Frames
         
         self.shrinking = True #If false then growing
         
     def animate(self):
         if self.shrinking:
-            self.size[1] -= (self.upperSize - self.lowerSize) / self.animationLength
+            self.size[1] -= (self.upperSize - self.lowerSize) / self.animationLength * self.md.deltaTime
         
         else:
-            self.size[1] += (self.upperSize - self.lowerSize) / self.animationLength
+            self.size[1] += (self.upperSize - self.lowerSize) / self.animationLength * self.md.deltaTime
         
         if self.rect.size[1] >= self.upperSize:
             self.shrinking = True
@@ -355,15 +357,18 @@ class Slime(Enemy):
         
 class Gunman(Enemy):
     def __init__(self, md, em, x, y, fireChance = 80):
-        Enemy.__init__(self, md, em, "gunman", 200, x, y, 30, (101, 67, 33), (28, 28), 80)
-        
         self.campPoint = pygame.math.Vector2(random.randrange(md.WIDTH),
                                              random.randrange(md.HEIGHT))
+        
+        Enemy.__init__(self, md, em, "gunman", 200, x, y, 30, (101, 67, 33), (28, 28), 80)
         
         self.fireChance = fireChance
         
     def calcDirection(self):
-        return (self.campPoint - self.pos).normalize()
+        if not self.rect.collidepoint(self.campPoint):
+            return (self.campPoint - self.pos).normalize()
+        else:
+            return pygame.math.Vector2(0, 0)
     
 class Zombie(Enemy):
     def __init__(self, md, em, x, y, damageRate = 10):
@@ -392,8 +397,6 @@ class Tank(Enemy):
         else:
             self.direction[1] = -1
             
-        print(x, y)
-            
         self.fireChance = fireChance
         
     def calcDirection(self):
@@ -416,6 +419,9 @@ class EnemyManager():
         
         self.baseTimeToSpawn = 1
         self.timeToSpawn = self.baseTimeToSpawn
+        
+        self.timeBetweenCalcDirection = .1
+        self.timeToCalcDirection = 0
         
     def createSpawnSpots(self, desiredAmount = 16, deviation = 0.2):
         """Should optimise"""
@@ -459,6 +465,9 @@ class EnemyManager():
             else:
                 self.addEnemy(Slime(self.md, self, pos[0], pos[1], baseGeneration + 1))
             
+        if baseGeneration == 1:
+            SOUNDS["squelch"].play()
+            
     def spawnEnemies(self, num = 1):
         toSpawn = random.randrange(20)
         pos = random.choice(self.spawnSpots)
@@ -473,17 +482,25 @@ class EnemyManager():
             self.addEnemy(Gunman(self.md, self, pos[0], pos[1]))
             
         else:
-            self.addEnemy(Tank(self.md, self, pos[0], pos[1]))            
+            self.addEnemy(Tank(self.md, self, pos[0], pos[1]))
+            
+    def calcDirections(self):
+        for enemy in self.enemies:
+            enemy.direction = enemy.calcDirection()
         
     def update(self):
         for enemy in self.enemies:
             enemy.update()
             
         self.timeToSpawn -= self.md.deltaTime
+        self.timeToCalcDirection -= self.md.deltaTime
             
         if self.timeToSpawn <= 0 and random.randrange(ceil(self.spawnRate / (self.md.timeElapsed / self.damper))) == 0:
             self.spawnEnemies()
             self.timeToSpawn = self.baseTimeToSpawn
+            
+        if self.timeToCalcDirection <= 0:
+            self.calcDirections()
             
     def draw(self):
         for enemy in self.enemies:
@@ -596,16 +613,17 @@ class MinimalDeathmatch(game.Game):
                 self.hud.font.render("You scored " + str(int(self.hud.sm.score)) + " points", True, RED, BLACK),
                 self.hud.smallFont.render("Press any key to exit", True, RED, BLACK))
         
-        self.screen.blit(text[0], ((self.WIDTH - text[0].get_width()) / 2,
-                                   0))
+        self.screen.blit(text[0], ((self.WIDTH - text[0].get_width()) / 2, 0))
+        self.screen.blit(text[3], ((self.WIDTH - text[3].get_width()) / 2, (self.HEIGHT - text[3].get_height())))
         
         cumulativeHeight = (self.HEIGHT - sum([item.get_height() for item in text])) / 2
         
-        for item in text[1:]:
+        for item in text[1 : 3]:
             self.screen.blit(item, ((self.WIDTH - item.get_width()) / 2, cumulativeHeight))
             cumulativeHeight += item.get_height()
             
         pygame.display.update()
+        pygame.event.clear()
         
         while True:
             for event in pygame.event.get():

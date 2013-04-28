@@ -1,6 +1,7 @@
 import pygame
 import sys
 import threading
+from fractions import gcd
 
 try:
     from grid import Grid
@@ -20,6 +21,10 @@ KEYCODES = getKeycodes()
 
 def key(key):
     return KEYCODES[key]
+
+def calcAspectRatio(width, height):
+    hcf = gcd(width, height)
+    return (width / 2, height / 2)
 
 class Renderer(threading.Thread):
     def __init__(self, RENDERRATE, *renderFuncs):
@@ -54,6 +59,8 @@ class Game():
         self.SCREENSIZE = self.screen.get_size()
         self.SCREENRECT = pygame.Rect((0, 0), self.SCREENSIZE)
         self.WIDTH, self.HEIGHT = self.SCREENSIZE
+        
+        self.aspectRatio = calcAspectRatio(self.WIDTH, self.HEIGHT)
             
         self.fillcolour = fillcolour
         
@@ -92,6 +99,10 @@ class Game():
     def setup(self):
         """Hook for setup"""
         pass
+    
+    def title(self):
+        """Hook for title screen"""
+        pass
         
     def update(self):
         """Hook for game update"""
@@ -116,10 +127,11 @@ class Game():
                 self.handleEvent(event)
         
     def run(self):
-        self.setup()
-        
         if self.renderer:
             self.renderer.start()
+            
+        self.title()
+        self.setup()
         
         while not self.ended:
             
