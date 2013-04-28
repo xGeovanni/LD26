@@ -1,7 +1,7 @@
 from cx_Freeze import setup,Executable
 import sys
 
-includefiles = ["Sounds", "Screens"]
+includefiles = ["Sounds", "Screens", "controls.txt"]
 includes = []
 excludes = []
 packages = []
@@ -15,5 +15,5 @@ setup(
     version = '1.0',
     description = "",
     options = {'build_exe': {'excludes':excludes,'packages':packages,'include_files':includefiles}}, 
-    executables = [Executable('LD26.py')]
+    executables = [Executable('LD26.pyw')]
 )

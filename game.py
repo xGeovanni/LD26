@@ -125,6 +125,11 @@ class Game():
                 
             else:
                 self.handleEvent(event)
+                
+    def stateTransition(self):
+        self.updateDisplay()
+        self.render()
+        self.updateDisplay()
         
     def run(self):
         if self.renderer:

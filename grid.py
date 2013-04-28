@@ -11,7 +11,7 @@ from functools import reduce
 def _isEven(i):
     return i % 2 == 0
 
-def product(_list):
+def _product(_list):
     return reduce(lambda x, y: x * y, _list, 1)
 
 def _range(start, stop, step=1):

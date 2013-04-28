@@ -1,3 +1,5 @@
+#Add potato
+
 import game
 import pygame
 import random
@@ -51,7 +53,7 @@ class Entity():
         self.move()
         
 class Player(Entity):
-    def __init__(self, md, bm, colour = (200, 0, 0), size = (32, 32),
+    def __init__(self, md, bm, colour = RED, size = (32, 32),
                 speed = 180, maxHealth = 100):
         
         x = (md.WIDTH - size[0]) / 2
@@ -104,13 +106,13 @@ class Player(Entity):
             self.handleKey(event.key, False)
     
     def handleKey(self, key, boolean):
-        if key == game.key("w"):
+        if key in (game.key("w"), game.key("up")):
             self.direction[1] = -1 * boolean
-        elif key == game.key("s"):
+        elif key in (game.key("s"), game.key("down")):
             self.direction[1] = 1 * boolean
-        elif key == game.key("a"):
+        elif key in (game.key("a"), game.key("left")):
             self.direction[0] = -1 * boolean
-        elif key == game.key("d"):
+        elif key in (game.key("d"), game.key("right")):
             self.direction[0] = 1 * boolean
         
     def fire(self):
@@ -524,7 +526,7 @@ class Cursor():
 
 class MinimalDeathmatch(game.Game):
     def __init__(self):
-        game.Game.__init__(self, 0, 0, gameName = "Minimal Deathmatch", FRAMERATE = 60, fillcolour = (255, 255, 255), fullscreen = True)
+        game.Game.__init__(self, 0, 0, gameName = "Minimal Deathmatch", fillcolour = (255, 255, 255), FRAMERATE = 60, fullscreen = True)
 
     def setup(self):
         self.em = EnemyManager(self)
@@ -539,6 +541,7 @@ class MinimalDeathmatch(game.Game):
         pygame.mixer.music.play(-1)
         
         self.muted = False
+        self.firstFrame = True
         
         self.timeElapsed = 0
 
@@ -550,7 +553,7 @@ class MinimalDeathmatch(game.Game):
         self.bm.update()
         self.em.update()
         self.hud.update()
-    
+
     def render(self):
         self.bm.draw()
         self.player.draw()
@@ -560,7 +563,7 @@ class MinimalDeathmatch(game.Game):
 
     def handleEvent(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+            if event.key == game.key("escape"):
                 pygame.display.iconify()
                 
             elif event.key == game.key("m"):
@@ -600,7 +603,10 @@ class MinimalDeathmatch(game.Game):
                     self.quit()
                              
                 elif event.type == pygame.KEYDOWN:
-                    return
+                    if event.key == game.key("escape"):
+                        pygame.display.iconify()
+                    else:
+                        return
         
     def gameOver(self, fadeout = 3000):
         pygame.mixer.music.fadeout(fadeout)
