@@ -39,7 +39,7 @@ class Renderer(threading.Thread):
                 func()
                 
 class Game():
-    def __init__(self, WIDTH, HEIGHT, gridsize = None,
+    def __init__(self, WIDTH, HEIGHT, gameName = "", gridsize = None,
                  FRAMERATE = 0, RENDERRATE = None, fillcolour = (0, 0, 0),
                  fullscreen = False):
         
@@ -47,6 +47,9 @@ class Game():
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            
+        self.gameName = gameName
+        pygame.display.set_caption(self.gameName)
             
         self.SCREENSIZE = self.screen.get_size()
         self.SCREENRECT = pygame.Rect((0, 0), self.SCREENSIZE)

@@ -10,14 +10,10 @@ BLACK = (0, 0, 0)
 RED = (200, 0, 0)
 BRIGHT_RED = (255, 32, 32)
 GREEN = (0, 200, 0)
-
-def meanVector(a, b, weights):
-    return pygame.math.Vector2((a[0] * weights[0] + b[0] * weights[1]) / 2,
-                               (a[1] * weights[0] + b[1] * weights[1]) / 2)
                                
 class Entity():
-    def __init__(self, hg,  x, y, colour, size, speed, sigma = None):
-        self.hg = hg
+    def __init__(self, md,  x, y, colour, size, speed, sigma = None):
+        self.md = md
         self.pos = pygame.math.Vector2(x, y)
         self.colour = colour
         self.size = size
@@ -31,11 +27,11 @@ class Entity():
         self.direction = pygame.math.Vector2(0, 0)
         
     def draw(self):
-        pygame.draw.rect(self.hg.screen, self.colour, self.rect)
+        pygame.draw.rect(self.md.screen, self.colour, self.rect)
         
     def move(self):
-        self.pos[0] += self.direction[0] * self.speed * self.hg.deltaTime
-        self.pos[1] += self.direction[1] * self.speed * self.hg.deltaTime
+        self.pos[0] += self.direction[0] * self.speed * self.md.deltaTime
+        self.pos[1] += self.direction[1] * self.speed * self.md.deltaTime
         
         self.rect = pygame.Rect(self.pos, self.size)
         
@@ -43,13 +39,13 @@ class Entity():
         self.move()
         
 class Player(Entity):
-    def __init__(self, hg, bm, colour = (200, 0, 0), size = (32, 32),
+    def __init__(self, md, bm, colour = (200, 0, 0), size = (32, 32),
                 speed = 180, maxHealth = 100):
         
-        x = (hg.WIDTH - size[0]) / 2
-        y = (hg.HEIGHT - size[1]) / 2
+        x = (md.WIDTH - size[0]) / 2
+        y = (md.HEIGHT - size[1]) / 2
         
-        Entity.__init__(self, hg, x, y, colour, size, speed)
+        Entity.__init__(self, md, x, y, colour, size, speed)
         
         self.maxHealth = maxHealth
         self.health = self.maxHealth
@@ -68,9 +64,9 @@ class Player(Entity):
         self.midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
                                             self.pos[1] + self.size[1] / 2)
         
-        for enemy in self.hg.em.enemies:
+        for enemy in self.md.em.enemies:
             if self.rect.colliderect(enemy.rect) and hasattr(enemy, "damageRate"):
-                self.damage(enemy.damageRate * self.hg.deltaTime)                    
+                self.damage(enemy.damageRate * self.md.deltaTime)                    
         
         if self.health <= 0:
             self.die()
@@ -100,18 +96,18 @@ class Player(Entity):
         try:
             bulletDirection = (pygame.math.Vector2(pygame.mouse.get_pos()) - self.midpoint).normalize()
         
-            self.bm.addBullet(Bullet(self.hg, self.midpoint, bulletDirection))
+            self.bm.addBullet(Bullet(self.md, self.midpoint, bulletDirection))
             
         except ValueError:
             pass #Tried to normalize vector of (0, 0)
                  #as the player clicked on the midpoint
         
     def die(self):
-        self.hg.gameOver()
+        self.md.gameOver()
         
 class HealthBar():
-    def __init__(self, hg, pos, size):
-        self.hg = hg
+    def __init__(self, md, pos, size):
+        self.md = md
         self.pos = pos
         
         self.redBarRect = pygame.Rect(pos, size)
@@ -124,21 +120,21 @@ class HealthBar():
         pygame.draw.rect(self.surface, RED, self.redBarRect)
         pygame.draw.rect(self.surface, GREEN, self.greenBarRect)
         
-        self.hg.screen.blit(self.surface, self.pos)
+        self.md.screen.blit(self.surface, self.pos)
         
     def update(self, health = None):
         """Health as a fraction of total"""
         
         if health is None:
-            health = self.hg.player.health / self.hg.player.maxHealth
+            health = self.md.player.health / self.md.player.maxHealth
 
         self.greenBarRect.size = (self.redBarRect.size[0] * health, self.greenBarRect.size[1])
         #the green bar rect is inflated by the red bar rect length,
         #multiplied by the reciprocal of health multiplied be negative one.
         
 class ScoreManager():        
-    def __init__(self, hg, pos, font, colour = BLACK):
-        self.hg = hg
+    def __init__(self, md, pos, font, colour = BLACK):
+        self.md = md
         
         self.score = 0
         self.multiplier = 1
@@ -163,19 +159,19 @@ class ScoreManager():
             self.updateScoreImg()
             
     def draw(self):
-        self.hg.screen.blit(self.scoreImg, self.pos)
+        self.md.screen.blit(self.scoreImg, self.pos)
 
 class HUD():
-    def __init__(self, hg):
-        self.hg = hg
+    def __init__(self, md):
+        self.md = md
         self.font = pygame.font.SysFont("Verdana, Lucida Console, Arial", 96)
         self.smallFont = pygame.font.SysFont("Verdana, Lucida Console, Arial", 48)
         
-        healthBarRect = ((0, 0), (self.hg.WIDTH * (3 / 4), self.hg.HEIGHT / 8))
-        scorePos = (self.hg.WIDTH * (3 / 4), 0)
+        healthBarRect = ((0, 0), (self.md.WIDTH * (3 / 4), self.md.HEIGHT / 8))
+        scorePos = (self.md.WIDTH * (3 / 4), 0)
         
-        self.healthBar = HealthBar(self.hg, healthBarRect[0], healthBarRect[1])
-        self.sm = ScoreManager(self.hg, scorePos, self.font)
+        self.healthBar = HealthBar(self.md, healthBarRect[0], healthBarRect[1])
+        self.sm = ScoreManager(self.md, scorePos, self.font)
         
     def update(self):
         self.healthBar.update()
@@ -186,21 +182,21 @@ class HUD():
         self.sm.draw()
         
 class Bullet(Entity):
-    def __init__(self, hg, pos, direction, side = "player", colour = (117, 117, 117),
+    def __init__(self, md, pos, direction, side = "player", colour = (117, 117, 117),
                 size = (8, 8), speed = 300, damage = 6):
-        Entity.__init__(self, hg, pos[0], pos[1], colour, size, speed)
+        Entity.__init__(self, md, pos[0], pos[1], colour, size, speed)
         
         self.direction = direction
         self.damage = damage
         self.side = side
         
     def draw(self):
-        pygame.draw.ellipse(self.hg.screen, self.colour, self.rect)
+        pygame.draw.ellipse(self.md.screen, self.colour, self.rect)
         
 class BulletManager():
-    def __init__(self, hg):
+    def __init__(self, md):
         self.bullets = []
-        self.hg = hg
+        self.md = md
         
     def addBullet(self, bullet):
         self.bullets.append(bullet)
@@ -213,19 +209,19 @@ class BulletManager():
         for bullet in self.bullets:
             bullet.update()
             
-            if not bullet.rect.colliderect(self.hg.SCREENRECT):
+            if not bullet.rect.colliderect(self.md.SCREENRECT):
                 self.delBullet(bullet)
             
             elif bullet.side == "player":
-                collidedEnemy = bullet.rect.collidelist([enemy.rect for enemy in self.hg.em.enemies])
+                collidedEnemy = bullet.rect.collidelist([enemy.rect for enemy in self.md.em.enemies])
                 
                 if collidedEnemy != -1:
-                    self.hg.em.damageEnemy(collidedEnemy, bullet)
+                    self.md.em.damageEnemy(collidedEnemy, bullet)
                     self.delBullet(bullet)
                     
             elif bullet.side == "enemy":
-                if bullet.rect.colliderect(self.hg.player.rect):
-                    self.hg.player.damage(bullet.damage / 2)
+                if bullet.rect.colliderect(self.md.player.rect):
+                    self.md.player.damage(bullet.damage / 2)
                     self.delBullet(bullet)
             
     def draw(self):
@@ -233,35 +229,65 @@ class BulletManager():
             bullet.draw()
 
 class Enemy(Entity):
-    def __init__(self, hg, em, type, scoreValue,  x, y, maxHealth, colour, size, speed):
+    def __init__(self, md, em, type, scoreValue,  x, y, maxHealth, colour, size, speed):
         self.maxHealth = maxHealth
         self.health = self.maxHealth
         self.em = em
         self.type = type
         self.scoreValue = scoreValue
         
-        Entity.__init__(self, hg, x, y, colour, size, speed, sigma = 10)
+        self.fireChance = 0
+        
+        self.baseTimeUntilFire = .5
+        self.timeUntilFire = self.baseTimeUntilFire
+        
+        Entity.__init__(self, md, x, y, colour, size, speed, sigma = 10)
         
     def calcDirection(self):
-        return (self.hg.player.pos - self.pos).normalize()
+        return (self.md.player.pos - self.pos).normalize()
+    
+    def specificUpdate(self):
+        pass
     
     def update(self):        
         self.direction = self.calcDirection()
         self.move()
         
+        if self.fireChance:
+            self.timeUntilFire -= self.md.deltaTime
+            
+            if self.timeUntilFire <= 0 and random.randrange(self.fireChance) == 0:
+                self.fire()
+                self.timeUntilFire = self.baseTimeUntilFire
+        
         if self.health <= 0:
             self.die()
+            
+        self.specificUpdate()
+            
+    def fire(self, misaim = 10):
+        #The game will error if you line up the two midpoints
+        
+        midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
+                                       self.pos[1] + self.size[1] / 2)
+        
+        shotPoint = pygame.math.Vector2([random.gauss(i, misaim) for i in self.md.player.midpoint])
+        
+        bulletDirection = (shotPoint - midpoint).normalize()
+        
+        self.md.bm.addBullet(Bullet(self.md, midpoint, bulletDirection, "enemy", colour = BLACK))
+        
             
     def damage(self, amount):
         self.health -= amount
         
     def die(self):
         self.em.delEnemy(self)
-        self.hg.hud.sm.changeScore(self.scoreValue)
+        self.md.hud.sm.changeScore(self.scoreValue)
 
         
 class Slime(Enemy):
-    def __init__(self, hg, em,  x, y, generation, size = (32, 32),
+    def __init__(self, md, em,  x, y, generation, size = (32, 32),
                  maxGenerations = 3, damageRate = 4):
         self.generation = generation
         self.maxGenerations = maxGenerations
@@ -270,79 +296,80 @@ class Slime(Enemy):
         
         size = (size[0] / self.generation, size[1] / self.generation)
         
-        Enemy.__init__(self, hg, em, "slime", 30 / self.generation, x, y,
+        Enemy.__init__(self, md, em, "slime", 30 / self.generation, x, y,
                        1, (153, 253, 56), size, 150)
         
     def die(self):
         if self.generation < self.maxGenerations:
             self.em.spawnSlimes(2, self.generation, self.pos, True)
         
-        self.hg.hud.sm.changeScore(self.scoreValue)
+        self.md.hud.sm.changeScore(self.scoreValue)
         self.em.delEnemy(self)
         
 class Gunman(Enemy):
-    def __init__(self, hg, em, x, y, fireChance = 400):
-        Enemy.__init__(self, hg, em, "gunman", 200, x, y, 30, (101, 67, 33), (28, 28), 80)
+    def __init__(self, md, em, x, y, fireChance = 80):
+        Enemy.__init__(self, md, em, "gunman", 200, x, y, 30, (101, 67, 33), (28, 28), 80)
         
-        self.campPoint = pygame.math.Vector2(random.randrange(hg.WIDTH),
-                                             random.randrange(hg.HEIGHT))
+        self.campPoint = pygame.math.Vector2(random.randrange(md.WIDTH),
+                                             random.randrange(md.HEIGHT))
         
         self.fireChance = fireChance
-        
-        self.baseTimeUntilFire = .5
-        self.timeUntilFire = self.baseTimeUntilFire
         
     def calcDirection(self):
         return (self.campPoint - self.pos).normalize()
     
-    def update(self):        
-        self.direction = self.calcDirection()
-        self.move()
-        
-        self.timeUntilFire -= self.hg.deltaTime
-        
-        if self.timeUntilFire <= 0 and random.randrange(self.fireChance) == 0:
-            self.fire()
-            self.timeUntilFire = self.baseTimeUntilFire
-        
-        if self.health <= 0:
-            self.die()
-            
-    def fire(self, misaim = 10):
-        #The game will error if you line up the two midpoints
-        
-        midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
-                                       self.pos[1] + self.size[1] / 2)
-        
-        shotPoint = pygame.math.Vector2([random.gauss(i, misaim) for i in self.hg.player.midpoint])
-        
-        bulletDirection = (shotPoint - midpoint).normalize()
-        
-        self.hg.bm.addBullet(Bullet(self.hg, midpoint, bulletDirection, "enemy", colour = BLACK))
-        
 class Zombie(Enemy):
-    def __init__(self, hg, em, x, y, damageRate = 10):
-        Enemy.__init__(self, hg, em, "zombie", 50, x, y, 10, (165, 165, 2), (24, 24), 200)
+    def __init__(self, md, em, x, y, damageRate = 10):
+        Enemy.__init__(self, md, em, "zombie", 50, x, y, 10, (165, 165, 2), (24, 24), 200)
         
         self.damageRate = damageRate
         
     def draw(self):
-        pygame.draw.ellipse(self.hg.screen, self.colour, self.rect)
+        pygame.draw.ellipse(self.md.screen, self.colour, self.rect)
+        
+class Tank(Enemy):
+    def __init__(self, md, em, x, y, fireChance = 100):
+        if x < 0 or x > md.WIDTH:
+            size = (48, 32)
+        else:
+            size = (32, 48)
+        
+        Enemy.__init__(self, md, em, "tank", 500, x, y, 100, (224, 223, 219), size, 50)
+        
+        if x < 0:
+            self.direction[0] = 1
+        elif x > self.md.WIDTH:
+            self.direction[0] = -1
+        elif y < 0:
+            self.direction[1] = 1
+        else:
+            self.direction[1] = -1
+            
+        print(x, y)
+            
+        self.fireChance = fireChance
+        
+    def calcDirection(self):
+        return self.direction
+        
+    def specificUpdate(self):
+        if not self.rect.colliderect(self.md.SCREENRECT):
+            self.em.delEnemy(self)
         
 class EnemyManager():
-    def __init__(self, hg, spawnRate = 1800, damper = 18):
+    def __init__(self, md, spawnRate = 180, damper = 14):
         self.enemies = []
         
-        self.hg = hg
+        self.md = md
         self.spawnRate = spawnRate
         
-        self.baseScore = 30
+        self.tankPoints = 3000    
         
         self.damper = damper #Dampener for the increase of spawn rate over time
         
         self.spawnSpots = self.createSpawnSpots()
         
-        self.baseTimeToSpawn = 0.1
+        self.baseTimeToSpawn = 1
         self.timeToSpawn = self.baseTimeToSpawn
         
     def createSpawnSpots(self, desiredAmount = 16, deviation = 0.2):
@@ -351,12 +378,12 @@ class EnemyManager():
         spawnSpots = []
         
         while len(spawnSpots) < desiredAmount:
-            new = (random.randrange(round(self.hg.WIDTH * -deviation),
-                                    round(self.hg.WIDTH * (1 + deviation))),
-                   random.randrange(round(self.hg.HEIGHT * -deviation),
-                                    round(self.hg.HEIGHT * (1 + deviation))))
+            new = (random.randrange(round(self.md.WIDTH * -deviation),
+                                    round(self.md.WIDTH * (1 + deviation))),
+                   random.randrange(round(self.md.HEIGHT * -deviation),
+                                    round(self.md.HEIGHT * (1 + deviation))))
         
-            if not self.hg.SCREENRECT.collidepoint(new):
+            if not self.md.SCREENRECT.collidepoint(new):
                 spawnSpots.append(new)
                 
         return spawnSpots
@@ -382,32 +409,34 @@ class EnemyManager():
         
         for i in range(num):
             if variation:
-                self.addEnemy(Slime(self.hg, self, random.gauss(pos[0], sigma), random.gauss(pos[1], sigma), baseGeneration + 1))
+                self.addEnemy(Slime(self.md, self, random.gauss(pos[0], sigma), random.gauss(pos[1], sigma), baseGeneration + 1))
             
             else:
-                self.addEnemy(Slime(self.hg, self, pos[0], pos[1], baseGeneration + 1))
+                self.addEnemy(Slime(self.md, self, pos[0], pos[1], baseGeneration + 1))
             
     def spawnEnemies(self, num = 1):
-        toSpawn = random.randrange(10)
+        toSpawn = random.randrange(20)
+        pos = random.choice(self.spawnSpots)
         
-        if toSpawn in range(7):
-            self.spawnSlimes()
+        if toSpawn in range(13):
+            self.spawnSlimes(pos = pos)
             
-        elif toSpawn in range(9):
-            pos = random.choice(self.spawnSpots)
-            self.addEnemy(Zombie(self.hg, self, pos[0], pos[1]))
+        elif toSpawn in range(16):
+            self.addEnemy(Zombie(self.md, self, pos[0], pos[1]))
         
-        elif toSpawn == 9:
-            pos = random.choice(self.spawnSpots)
-            self.addEnemy(Gunman(self.hg, self, pos[0], pos[1]))
+        elif toSpawn in range(18):
+            self.addEnemy(Gunman(self.md, self, pos[0], pos[1]))
+            
+        elif self.md.hud.sm.score > self.tankPoints:
+            self.addEnemy(Tank(self.md, self, pos[0], pos[1]))            
         
     def update(self):
         for enemy in self.enemies:
             enemy.update()
             
-        self.timeToSpawn -= self.hg.deltaTime
+        self.timeToSpawn -= self.md.deltaTime
             
-        if self.timeToSpawn <= 0 and random.randrange(ceil(self.spawnRate / (self.hg.timeElapsed / self.damper))) == 0:
+        if self.timeToSpawn <= 0 and random.randrange(ceil(self.spawnRate / (self.md.timeElapsed / self.damper))) == 0:
             self.spawnEnemies()
             self.timeToSpawn = self.baseTimeToSpawn
             
@@ -416,9 +445,9 @@ class EnemyManager():
             enemy.draw()
             
 class Cursor():
-    def __init__(self, hg, colour = BRIGHT_RED, radius = 4):
+    def __init__(self, md, colour = BRIGHT_RED, radius = 4):
         pygame.mouse.set_visible(False)
-        self.hg = hg
+        self.md = md
         self.radius = radius
         
         self.colour = colour
@@ -426,14 +455,14 @@ class Cursor():
     def draw(self):
         pos = [i + self.radius for i in pygame.mouse.get_pos()]
         
-        pygame.draw.circle(self.hg.screen, self.colour, pos, self.radius * 2, 1)
+        pygame.draw.circle(self.md.screen, self.colour, pos, self.radius * 2, 1)
         
-        pygame.draw.circle(self.hg.screen, self.colour,
+        pygame.draw.circle(self.md.screen, self.colour,
                            pos, self.radius)
 
-class HordeGame(game.Game):
+class MinimalDeathmatch(game.Game):
     def __init__(self):
-        game.Game.__init__(self, 0, 0, fillcolour = (255, 255, 255), fullscreen = True)
+        game.Game.__init__(self, 0, 0, gameName = "Minimal Deathmatch", FRAMERATE = 60, fillcolour = (255, 255, 255), fullscreen = True)
 
     def setup(self):
         self.em = EnemyManager(self)
@@ -453,8 +482,6 @@ class HordeGame(game.Game):
         self.bm.update()
         self.em.update()
         self.hud.update()
-        
-        #print(self.clock.get_fps())
     
     def render(self):
         self.bm.draw()
@@ -495,8 +522,8 @@ class HordeGame(game.Game):
                     self.quit()
 
 def main():
-    hg = HordeGame()
-    hg.run()
+    md = MinimalDeathmatch()
+    md.run()
 
 if __name__ == "__main__":
     main()
