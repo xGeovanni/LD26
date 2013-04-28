@@ -1,6 +1,6 @@
-#Add potato
+#Must add potato
 
-import game
+import game as gameEngine
 import pygame
 import random
 from math import ceil
@@ -9,11 +9,16 @@ from time import sleep
 pygame.font.init()
 pygame.mixer.init()
 
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (200, 0, 0)
-BRIGHT_RED = (255, 32, 32)
-GREEN = (0, 200, 0)
+COLOURS = {"white" : (255, 255, 255),
+           "black" : (0, 0, 0),
+           "red" : (200, 0, 0),
+           "bright_red" : (255, 32, 32),
+           "green" : (0, 200, 0),
+           "steel" : (224, 223, 219),
+           "grey46" : (117, 117, 117),
+           "lime" : (153, 253, 56),
+           "dark_brown" : (101, 67, 33),
+           "puke" : (165, 165, 2)}
 
 SOUNDS_FOLDER = "Sounds/"
 SCREENS_FOLDER = "Screens/"
@@ -26,8 +31,8 @@ for sound in SOUNDS.values():
     sound.set_volume(0.5)
                                
 class Entity():
-    def __init__(self, md,  x, y, colour, size, speed, sigma = None):
-        self.md = md
+    def __init__(self, game,  x, y, colour, size, speed, sigma = None):
+        self.game = game
         self.pos = pygame.math.Vector2(x, y)
         self.colour = colour
         self.size = size
@@ -41,11 +46,11 @@ class Entity():
         self.direction = pygame.math.Vector2(0, 0)
         
     def draw(self):
-        pygame.draw.rect(self.md.screen, self.colour, self.rect)
+        pygame.draw.rect(self.game.screen, self.colour, self.rect)
         
     def move(self):
-        self.pos[0] += self.direction[0] * self.speed * self.md.deltaTime
-        self.pos[1] += self.direction[1] * self.speed * self.md.deltaTime
+        self.pos[0] += self.direction[0] * self.speed * self.game.deltaTime
+        self.pos[1] += self.direction[1] * self.speed * self.game.deltaTime
         
         self.rect = pygame.Rect(self.pos, self.size)
         
@@ -53,13 +58,13 @@ class Entity():
         self.move()
         
 class Player(Entity):
-    def __init__(self, md, bm, colour = RED, size = (32, 32),
+    def __init__(self, game, bm, colour = COLOURS["red"], size = (32, 32),
                 speed = 180, maxHealth = 100):
         
-        x = (md.WIDTH - size[0]) / 2
-        y = (md.HEIGHT - size[1]) / 2
+        x = (game.WIDTH - size[0]) / 2
+        y = (game.HEIGHT - size[1]) / 2
         
-        Entity.__init__(self, md, x, y, colour, size, speed)
+        Entity.__init__(self, game, x, y, colour, size, speed)
         
         self.maxHealth = maxHealth
         self.health = self.maxHealth
@@ -85,11 +90,11 @@ class Player(Entity):
         self.midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
                                             self.pos[1] + self.size[1] / 2)
         
-        for enemy in self.md.em.enemies:
+        for enemy in self.game.em.enemies:
             if self.rect.colliderect(enemy.rect) and hasattr(enemy, "damageRate"):
-                self.damage(enemy.damageRate * self.md.deltaTime)                    
+                self.damage(enemy.damageRate * self.game.deltaTime)                    
         
-        self.timeToHurtSound -= self.md.deltaTime
+        self.timeToHurtSound -= self.game.deltaTime
         
         if self.health <= 0:
             self.die()
@@ -106,20 +111,20 @@ class Player(Entity):
             self.handleKey(event.key, False)
     
     def handleKey(self, key, boolean):
-        if key in (game.key("w"), game.key("up")):
+        if key in (gameEngine.key("w"), gameEngine.key("up")):
             self.direction[1] = -1 * boolean
-        elif key in (game.key("s"), game.key("down")):
+        elif key in (gameEngine.key("s"), gameEngine.key("down")):
             self.direction[1] = 1 * boolean
-        elif key in (game.key("a"), game.key("left")):
+        elif key in (gameEngine.key("a"), gameEngine.key("left")):
             self.direction[0] = -1 * boolean
-        elif key in (game.key("d"), game.key("right")):
+        elif key in (gameEngine.key("d"), gameEngine.key("right")):
             self.direction[0] = 1 * boolean
         
     def fire(self):
         try:
             bulletDirection = (pygame.math.Vector2(pygame.mouse.get_pos()) - self.midpoint).normalize()
             
-            self.bm.addBullet(Bullet(self.md, self.midpoint, bulletDirection))
+            self.bm.addBullet(Bullet(self.game, self.midpoint, bulletDirection))
             #SOUNDS["shoot"].play()
             
         except ValueError:
@@ -127,11 +132,11 @@ class Player(Entity):
                  #as the player clicked on the midpoint
         
     def die(self):
-        self.md.gameOver()
+        self.game.gameOver()
         
 class HealthBar():
-    def __init__(self, md, pos, size):
-        self.md = md
+    def __init__(self, game, pos, size):
+        self.game = game
         self.pos = pos
         
         self.redBarRect = pygame.Rect(pos, size)
@@ -141,24 +146,24 @@ class HealthBar():
         self.surface.set_alpha(128)
         
     def draw(self):
-        pygame.draw.rect(self.surface, RED, self.redBarRect)
-        pygame.draw.rect(self.surface, GREEN, self.greenBarRect)
+        pygame.draw.rect(self.surface, COLOURS["red"], self.redBarRect)
+        pygame.draw.rect(self.surface, COLOURS["green"], self.greenBarRect)
         
-        self.md.screen.blit(self.surface, self.pos)
+        self.game.screen.blit(self.surface, self.pos)
         
     def update(self, health = None):
         """Health as a fraction of total"""
         
         if health is None:
-            health = self.md.player.health / self.md.player.maxHealth
+            health = self.game.player.health / self.game.player.maxHealth
 
         self.greenBarRect.size = (self.redBarRect.size[0] * health, self.greenBarRect.size[1])
         #the green bar rect is inflated by the red bar rect length,
         #multiplied by the reciprocal of health multiplied be negative one.
         
 class ScoreManager():        
-    def __init__(self, md, pos, font, colour = BLACK):
-        self.md = md
+    def __init__(self, game, pos, font, colour = COLOURS["black"]):
+        self.game = game
         
         self.score = 0
         self.multiplier = 1
@@ -183,19 +188,19 @@ class ScoreManager():
             self.updateScoreImg()
             
     def draw(self):
-        self.md.screen.blit(self.scoreImg, self.pos)
+        self.game.screen.blit(self.scoreImg, self.pos)
 
 class HUD():
-    def __init__(self, md):
-        self.md = md
+    def __init__(self, game):
+        self.game = game
         self.font = pygame.font.SysFont("Verdana, Lucida Console, Arial", 96)
         self.smallFont = pygame.font.SysFont("Verdana, Lucida Console, Arial", 48)
         
-        healthBarRect = ((0, 0), (self.md.WIDTH * (3 / 4), self.md.HEIGHT / 8))
-        scorePos = (self.md.WIDTH * (3 / 4), 0)
+        healthBarRect = ((0, 0), (self.game.WIDTH * (3 / 4), self.game.HEIGHT / 8))
+        scorePos = (self.game.WIDTH * (3 / 4), 0)
         
-        self.healthBar = HealthBar(self.md, healthBarRect[0], healthBarRect[1])
-        self.sm = ScoreManager(self.md, scorePos, self.font)
+        self.healthBar = HealthBar(self.game, healthBarRect[0], healthBarRect[1])
+        self.sm = ScoreManager(self.game, scorePos, self.font)
         
     def update(self):
         self.healthBar.update()
@@ -206,21 +211,21 @@ class HUD():
         self.sm.draw()
         
 class Bullet(Entity):
-    def __init__(self, md, pos, direction, side = "player", colour = (117, 117, 117),
+    def __init__(self, game, pos, direction, side = "player", colour = COLOURS["grey46"],
                 size = (8, 8), speed = 300, damage = 6):
-        Entity.__init__(self, md, pos[0], pos[1], colour, size, speed)
+        Entity.__init__(self, game, pos[0], pos[1], colour, size, speed)
         
         self.direction = direction
         self.damage = damage
         self.side = side
         
     def draw(self):
-        pygame.draw.ellipse(self.md.screen, self.colour, self.rect)
+        pygame.draw.ellipse(self.game.screen, self.colour, self.rect)
         
 class BulletManager():
-    def __init__(self, md):
+    def __init__(self, game):
         self.bullets = []
-        self.md = md
+        self.game = game
         
     def addBullet(self, bullet):
         self.bullets.append(bullet)
@@ -233,19 +238,19 @@ class BulletManager():
         for bullet in self.bullets:
             bullet.update()
             
-            if not bullet.rect.colliderect(self.md.SCREENRECT):
+            if not bullet.rect.colliderect(self.game.SCREENRECT):
                 self.delBullet(bullet)
             
             elif bullet.side == "player":
-                collidedEnemy = bullet.rect.collidelist([enemy.rect for enemy in self.md.em.enemies])
+                collidedEnemy = bullet.rect.collidelist([enemy.rect for enemy in self.game.em.enemies])
                 
                 if collidedEnemy != -1:
-                    self.md.em.damageEnemy(collidedEnemy, bullet)
+                    self.game.em.damageEnemy(collidedEnemy, bullet)
                     self.delBullet(bullet)
                     
             elif bullet.side == "enemy":
-                if bullet.rect.colliderect(self.md.player.rect):
-                    self.md.player.damage(bullet.damage / 2)
+                if bullet.rect.colliderect(self.game.player.rect):
+                    self.game.player.damage(bullet.damage / 2)
                     self.delBullet(bullet)
                     
     
@@ -255,7 +260,7 @@ class BulletManager():
             bullet.draw()
 
 class Enemy(Entity):
-    def __init__(self, md, em, type, scoreValue,  x, y, maxHealth, colour, size, speed):
+    def __init__(self, game, em, type, scoreValue,  x, y, maxHealth, colour, size, speed):
         self.maxHealth = maxHealth
         self.health = self.maxHealth
         self.em = em
@@ -267,10 +272,10 @@ class Enemy(Entity):
         self.baseTimeUntilFire = .5
         self.timeUntilFire = self.baseTimeUntilFire
         
-        Entity.__init__(self, md, x, y, colour, size, speed, sigma = 20)
+        Entity.__init__(self, game, x, y, colour, size, speed, sigma = 20)
         
     def calcDirection(self):
-        return (self.md.player.pos - self.pos).normalize()
+        return (self.game.player.pos - self.pos).normalize()
     
     def specificUpdate(self):
         pass
@@ -279,7 +284,7 @@ class Enemy(Entity):
         self.move()
         
         if self.fireChance:
-            self.timeUntilFire -= self.md.deltaTime
+            self.timeUntilFire -= self.game.deltaTime
             
             if self.timeUntilFire <= 0 and random.randrange(self.fireChance) == 0:
                 self.fire()
@@ -290,31 +295,30 @@ class Enemy(Entity):
             
         self.specificUpdate()
             
-    def fire(self, misaim = 10):
-        #The game will error if you line up the two midpoints
-        
+    def fire(self, misaim = 10):        
         midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
                                        self.pos[1] + self.size[1] / 2)
-        
-        SOUNDS["shoot"].play()
-        
-        shotPoint = pygame.math.Vector2([random.gauss(i, misaim) for i in self.md.player.midpoint])
-        
-        bulletDirection = (shotPoint - midpoint).normalize()
-        
-        self.md.bm.addBullet(Bullet(self.md, midpoint, bulletDirection, "enemy", colour = BLACK))
-        
+        try:
+            shotPoint = pygame.math.Vector2([random.gauss(i, misaim) for i in self.game.player.midpoint])
+            bulletDirection = (shotPoint - midpoint).normalize()
+            
+            self.game.bm.addBullet(Bullet(self.game, midpoint, bulletDirection, "enemy", colour = COLOURS["black"]))
+            
+            SOUNDS["shoot"].play()
+        except ValueError:
+            pass #player.midpoint and shotpoint are exactly alligned, and therefore it attempted
+                 # to normalise a vector of zero
             
     def damage(self, amount):
         self.health -= amount
         
     def die(self):
         self.em.delEnemy(self)
-        self.md.hud.sm.changeScore(self.scoreValue)
+        self.game.hud.sm.changeScore(self.scoreValue)
 
         
 class Slime(Enemy):
-    def __init__(self, md, em,  x, y, generation, size = (32, 32),
+    def __init__(self, game, em,  x, y, generation, size = (32, 32),
                  maxGenerations = 3, damageRate = 4):
         self.generation = generation
         self.maxGenerations = maxGenerations
@@ -323,8 +327,8 @@ class Slime(Enemy):
         
         size = [size[0] / self.generation, size[1] / self.generation]
         
-        Enemy.__init__(self, md, em, "slime", 30 / self.generation, x, y,
-                       1, (153, 253, 56), size, 150)
+        Enemy.__init__(self, game, em, "slime", 30 / self.generation, x, y,
+                       1, COLOURS["lime"], size, 150)
         
         self.upperSize = self.rect.size[1]
         self.lowerSize = self.rect.size[1] * 0.75
@@ -335,10 +339,10 @@ class Slime(Enemy):
         
     def animate(self):
         if self.shrinking:
-            self.size[1] -= (self.upperSize - self.lowerSize) / self.animationLength * self.md.deltaTime
+            self.size[1] -= (self.upperSize - self.lowerSize) / self.animationLength * self.game.deltaTime
         
         else:
-            self.size[1] += (self.upperSize - self.lowerSize) / self.animationLength * self.md.deltaTime
+            self.size[1] += (self.upperSize - self.lowerSize) / self.animationLength * self.game.deltaTime
         
         if self.rect.size[1] >= self.upperSize:
             self.shrinking = True
@@ -354,15 +358,15 @@ class Slime(Enemy):
         if self.generation < self.maxGenerations:
             self.em.spawnSlimes(2, self.generation, self.pos, True)
         
-        self.md.hud.sm.changeScore(self.scoreValue)
+        self.game.hud.sm.changeScore(self.scoreValue)
         self.em.delEnemy(self)
         
 class Gunman(Enemy):
-    def __init__(self, md, em, x, y, fireChance = 80):
-        self.campPoint = pygame.math.Vector2(random.randrange(md.WIDTH),
-                                             random.randrange(md.HEIGHT))
+    def __init__(self, game, em, x, y, fireChance = 80):
+        self.campPoint = pygame.math.Vector2(random.randrange(game.WIDTH),
+                                             random.randrange(game.HEIGHT))
         
-        Enemy.__init__(self, md, em, "gunman", 200, x, y, 30, (101, 67, 33), (28, 28), 80)
+        Enemy.__init__(self, game, em, "gunman", 200, x, y, 30, COLOURS["dark_brown"], (28, 28), 80)
         
         self.fireChance = fireChance
         
@@ -373,26 +377,26 @@ class Gunman(Enemy):
             return pygame.math.Vector2(0, 0)
     
 class Zombie(Enemy):
-    def __init__(self, md, em, x, y, damageRate = 10):
-        Enemy.__init__(self, md, em, "zombie", 50, x, y, 10, (165, 165, 2), (24, 24), 200)
+    def __init__(self, game, em, x, y, damageRate = 10):
+        Enemy.__init__(self, game, em, "zombie", 50, x, y, 10, COLOURS["puke"], (24, 24), 200)
         
         self.damageRate = damageRate
         
     def draw(self):
-        pygame.draw.ellipse(self.md.screen, self.colour, self.rect)
+        pygame.draw.ellipse(self.game.screen, self.colour, self.rect)
         
 class Tank(Enemy):
-    def __init__(self, md, em, x, y, fireChance = 100):
-        if x < 0 or x > md.WIDTH:
+    def __init__(self, game, em, x, y, fireChance = 100):
+        if x < 0 or x > game.WIDTH:
             size = (48, 32)
         else:
             size = (32, 48)
         
-        Enemy.__init__(self, md, em, "tank", 500, x, y, 100, (224, 223, 219), size, 50)
+        Enemy.__init__(self, game, em, "tank", 500, x, y, 100, COLOURS["steel"], size, 50)
         
         if x < 0:
             self.direction[0] = 1
-        elif x > self.md.WIDTH:
+        elif x > self.game.WIDTH:
             self.direction[0] = -1
         elif y < 0:
             self.direction[1] = 1
@@ -405,14 +409,14 @@ class Tank(Enemy):
         return self.direction
         
     def specificUpdate(self):
-        if not self.rect.colliderect(self.md.SCREENRECT):
+        if not self.rect.colliderect(self.game.SCREENRECT):
             self.em.delEnemy(self)
         
 class EnemyManager():
-    def __init__(self, md, spawnRate = 180, damper = 14):
+    def __init__(self, game, spawnRate = 180, damper = 14):
         self.enemies = []
         
-        self.md = md
+        self.game = game
         self.spawnRate = spawnRate    
         
         self.damper = damper #Dampener for the increase of spawn rate over time
@@ -431,12 +435,12 @@ class EnemyManager():
         spawnSpots = []
         
         while len(spawnSpots) < desiredAmount:
-            new = (random.randrange(round(self.md.WIDTH * -deviation),
-                                    round(self.md.WIDTH * (1 + deviation))),
-                   random.randrange(round(self.md.HEIGHT * -deviation),
-                                    round(self.md.HEIGHT * (1 + deviation))))
+            new = (random.randrange(round(self.game.WIDTH * -deviation),
+                                    round(self.game.WIDTH * (1 + deviation))),
+                   random.randrange(round(self.game.HEIGHT * -deviation),
+                                    round(self.game.HEIGHT * (1 + deviation))))
         
-            if not self.md.SCREENRECT.collidepoint(new):
+            if not self.game.SCREENRECT.collidepoint(new):
                 spawnSpots.append(new)
                 
         return spawnSpots
@@ -462,10 +466,10 @@ class EnemyManager():
         
         for i in range(num):
             if variation:
-                self.addEnemy(Slime(self.md, self, random.gauss(pos[0], sigma), random.gauss(pos[1], sigma), baseGeneration + 1))
+                self.addEnemy(Slime(self.game, self, random.gauss(pos[0], sigma), random.gauss(pos[1], sigma), baseGeneration + 1))
             
             else:
-                self.addEnemy(Slime(self.md, self, pos[0], pos[1], baseGeneration + 1))
+                self.addEnemy(Slime(self.game, self, pos[0], pos[1], baseGeneration + 1))
             
         if baseGeneration == 1:
             SOUNDS["squelch"].play()
@@ -478,13 +482,13 @@ class EnemyManager():
             self.spawnSlimes(pos = pos)
             
         elif toSpawn in range(16):
-            self.addEnemy(Zombie(self.md, self, pos[0], pos[1]))
+            self.addEnemy(Zombie(self.game, self, pos[0], pos[1]))
         
         elif toSpawn in range(18):
-            self.addEnemy(Gunman(self.md, self, pos[0], pos[1]))
+            self.addEnemy(Gunman(self.game, self, pos[0], pos[1]))
             
         else:
-            self.addEnemy(Tank(self.md, self, pos[0], pos[1]))
+            self.addEnemy(Tank(self.game, self, pos[0], pos[1]))
             
     def calcDirections(self):
         for enemy in self.enemies:
@@ -494,10 +498,10 @@ class EnemyManager():
         for enemy in self.enemies:
             enemy.update()
             
-        self.timeToSpawn -= self.md.deltaTime
-        self.timeToCalcDirection -= self.md.deltaTime
+        self.timeToSpawn -= self.game.deltaTime
+        self.timeToCalcDirection -= self.game.deltaTime
             
-        if self.timeToSpawn <= 0 and random.randrange(ceil(self.spawnRate / (self.md.timeElapsed / self.damper))) == 0:
+        if self.timeToSpawn <= 0 and random.randrange(ceil(self.spawnRate / (self.game.timeElapsed / self.damper))) == 0:
             self.spawnEnemies()
             self.timeToSpawn = self.baseTimeToSpawn
             
@@ -509,9 +513,9 @@ class EnemyManager():
             enemy.draw()
             
 class Cursor():
-    def __init__(self, md, colour = BRIGHT_RED, radius = 4):
+    def __init__(self, game, colour = COLOURS["bright_red"], radius = 4):
         pygame.mouse.set_visible(False)
-        self.md = md
+        self.game = game
         self.radius = radius
         
         self.colour = colour
@@ -519,14 +523,14 @@ class Cursor():
     def draw(self):
         pos = [i + self.radius for i in pygame.mouse.get_pos()]
         
-        pygame.draw.circle(self.md.screen, self.colour, pos, self.radius * 2, 1)
+        pygame.draw.circle(self.game.screen, self.colour, pos, self.radius * 2, 1)
         
-        pygame.draw.circle(self.md.screen, self.colour,
+        pygame.draw.circle(self.game.screen, self.colour,
                            pos, self.radius)
 
-class MinimalDeathmatch(game.Game):
+class MinimalDeathmatch(gameEngine.Game):
     def __init__(self):
-        game.Game.__init__(self, 0, 0, gameName = "Minimal Deathmatch", fillcolour = (255, 255, 255), FRAMERATE = 60, fullscreen = True)
+        gameEngine.Game.__init__(self, 0, 0, gameName = "Minimal Deathmatch", fillcolour = COLOURS["white"], FRAMERATE = 60, fullscreen = True)
 
     def setup(self):
         self.em = EnemyManager(self)
@@ -563,10 +567,10 @@ class MinimalDeathmatch(game.Game):
 
     def handleEvent(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == game.key("escape"):
+            if event.key == gameEngine.key("escape"):
                 pygame.display.iconify()
                 
-            elif event.key == game.key("m"):
+            elif event.key == gameEngine.key("m"):
                 self.toggleMute()
             
         self.player.handleEvent(event)
@@ -603,7 +607,7 @@ class MinimalDeathmatch(game.Game):
                     self.quit()
                              
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == game.key("escape"):
+                    if event.key == gameEngine.key("escape"):
                         pygame.display.iconify()
                     else:
                         return
@@ -612,12 +616,12 @@ class MinimalDeathmatch(game.Game):
         pygame.mixer.music.fadeout(fadeout)
         sleep(fadeout / 1000)
         
-        self.screen.fill(BLACK)
+        self.screen.fill(COLOURS["black"])
         
-        text = (self.hud.font.render("Game Over", True, RED, BLACK),
-                self.hud.font.render("You lasted " + str(int(self.timeElapsed)) + " seconds", True, RED, BLACK),
-                self.hud.font.render("You scored " + str(int(self.hud.sm.score)) + " points", True, RED, BLACK),
-                self.hud.smallFont.render("Press any key to exit", True, RED, BLACK))
+        text = (self.hud.font.render("Game Over", True, COLOURS["red"], COLOURS["black"]),
+                self.hud.font.render("You lasted " + str(int(self.timeElapsed)) + " seconds", True, COLOURS["red"], COLOURS["black"]),
+                self.hud.font.render("You scored " + str(int(self.hud.sm.score)) + " points", True, COLOURS["red"], COLOURS["black"]),
+                self.hud.smallFont.render("Press any key to exit", True, COLOURS["red"], COLOURS["black"]))
         
         self.screen.blit(text[0], ((self.WIDTH - text[0].get_width()) / 2, 0))
         self.screen.blit(text[3], ((self.WIDTH - text[3].get_width()) / 2, (self.HEIGHT - text[3].get_height())))
@@ -637,8 +641,8 @@ class MinimalDeathmatch(game.Game):
                     self.quit()
 
 def main():
-    md = MinimalDeathmatch()
-    md.run()
+    game = MinimalDeathmatch()
+    game.run()
 
 if __name__ == "__main__":
     main()
