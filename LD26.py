@@ -2,14 +2,24 @@ import game
 import pygame
 import random
 from math import ceil
+from time import sleep
 
 pygame.font.init()
+pygame.mixer.init()
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (200, 0, 0)
 BRIGHT_RED = (255, 32, 32)
 GREEN = (0, 200, 0)
+
+SOUNDS_FOLDER = "Sounds/"
+
+SOUNDS = {"hurt" : pygame.mixer.Sound(SOUNDS_FOLDER + "Hit_Hurt9.ogg"),
+          "shoot" : pygame.mixer.Sound(SOUNDS_FOLDER + "Laser_Shoot25.ogg")}
+
+for sound in SOUNDS.values():
+    sound.set_volume(0.5)
                                
 class Entity():
     def __init__(self, md,  x, y, colour, size, speed, sigma = None):
@@ -55,8 +65,15 @@ class Player(Entity):
        
         self.bm = bm
         
+        self.timeBetweenHurtSounds = 0.5
+        self.timeToHurtSound = 0
+        
     def damage(self, amount):
         self.health -= amount
+                
+        if self.timeToHurtSound <= 0:
+            SOUNDS["hurt"].play()
+            self.timeToHurtSound = self.timeBetweenHurtSounds
         
     def update(self):
         self.move()
@@ -67,6 +84,8 @@ class Player(Entity):
         for enemy in self.md.em.enemies:
             if self.rect.colliderect(enemy.rect) and hasattr(enemy, "damageRate"):
                 self.damage(enemy.damageRate * self.md.deltaTime)                    
+        
+        self.timeToHurtSound -= self.md.deltaTime
         
         if self.health <= 0:
             self.die()
@@ -95,8 +114,9 @@ class Player(Entity):
     def fire(self):
         try:
             bulletDirection = (pygame.math.Vector2(pygame.mouse.get_pos()) - self.midpoint).normalize()
-        
+            
             self.bm.addBullet(Bullet(self.md, self.midpoint, bulletDirection))
+            SOUNDS["shoot"].play()
             
         except ValueError:
             pass #Tried to normalize vector of (0, 0)
@@ -271,6 +291,8 @@ class Enemy(Entity):
         midpoint = pygame.math.Vector2(self.pos[0] + self.size[0] / 2,
                                        self.pos[1] + self.size[1] / 2)
         
+        SOUNDS["shoot"].play()
+        
         shotPoint = pygame.math.Vector2([random.gauss(i, misaim) for i in self.md.player.midpoint])
         
         bulletDirection = (shotPoint - midpoint).normalize()
@@ -294,10 +316,34 @@ class Slime(Enemy):
         
         self.damageRate = damageRate / self.generation ** 2
         
-        size = (size[0] / self.generation, size[1] / self.generation)
+        size = [size[0] / self.generation, size[1] / self.generation]
         
         Enemy.__init__(self, md, em, "slime", 30 / self.generation, x, y,
                        1, (153, 253, 56), size, 150)
+        
+        self.upperSize = self.rect.size[1]
+        self.lowerSize = self.rect.size[1] * 0.75
+        
+        self.animationLength = 120 #Frames
+        
+        self.shrinking = True #If false then growing
+        
+    def animate(self):
+        if self.shrinking:
+            self.size[1] -= (self.upperSize - self.lowerSize) / self.animationLength
+        
+        else:
+            self.size[1] += (self.upperSize - self.lowerSize) / self.animationLength
+        
+        if self.rect.size[1] >= self.upperSize:
+            self.shrinking = True
+            
+        elif self.rect.size[1] <= self.lowerSize:
+            self.shrinking = False
+            
+    def specificUpdate(self):
+        if self.generation < 3:
+            self.animate()
         
     def die(self):
         if self.generation < self.maxGenerations:
@@ -361,9 +407,7 @@ class EnemyManager():
         self.enemies = []
         
         self.md = md
-        self.spawnRate = spawnRate
-        
-        self.tankPoints = 3000    
+        self.spawnRate = spawnRate    
         
         self.damper = damper #Dampener for the increase of spawn rate over time
         
@@ -427,7 +471,7 @@ class EnemyManager():
         elif toSpawn in range(18):
             self.addEnemy(Gunman(self.md, self, pos[0], pos[1]))
             
-        elif self.md.hud.sm.score > self.tankPoints:
+        else:
             self.addEnemy(Tank(self.md, self, pos[0], pos[1]))            
         
     def update(self):
@@ -472,6 +516,12 @@ class MinimalDeathmatch(game.Game):
         
         self.cursor = Cursor(self)
         
+        pygame.mixer.music.load(SOUNDS_FOLDER + "music.ogg")
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
+        
+        self.muted = False
+        
         self.timeElapsed = 0
 
     def update(self):
@@ -494,10 +544,29 @@ class MinimalDeathmatch(game.Game):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 pygame.display.iconify()
+                
+            elif event.key == game.key("m"):
+                self.toggleMute()
             
         self.player.handleEvent(event)
         
-    def gameOver(self):
+    def toggleMute(self, vol = 0.5):
+        if self.muted:
+            for sound in SOUNDS.values():
+                sound.set_volume(vol)
+            pygame.mixer.music.set_volume(vol)
+            self.muted = False
+        
+        else:
+            for sound in SOUNDS.values():
+                sound.set_volume(0)
+            pygame.mixer.music.set_volume(0)
+            self.muted = True
+        
+    def gameOver(self, fadeout = 3000):
+        pygame.mixer.music.fadeout(fadeout)
+        sleep(fadeout / 1000)
+        
         self.screen.fill(BLACK)
         
         text = (self.hud.font.render("Game Over", True, RED, BLACK),
