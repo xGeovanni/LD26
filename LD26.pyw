@@ -77,6 +77,12 @@ class Player(Entity):
         self.timeBetweenHurtSounds = 0.5
         self.timeToHurtSound = 0
         
+        self.timeBetweenShots = 0.15
+        self.timeToShot = 0
+        
+        self.clickAndHold = True
+        self.firing = False
+        
     def damage(self, amount):
         self.health -= amount
                 
@@ -98,11 +104,28 @@ class Player(Entity):
         
         if self.health <= 0:
             self.die()
+            
+        if self.firing:
+            self.timeToShot -= self.game.deltaTime
+            
+            if self.timeToShot <= 0:
+                self.fire()
+                self.timeToShot = self.timeBetweenShots
+            
+        else:
+            self.timeToShot = 0
         
     def handleEvent(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1: #Left click
-                self.fire()
+            if event.button == 1: #Left button
+                if self.clickAndHold:
+                    self.firing = True
+                else:
+                    self.fire()
+                
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1 and self.clickAndHold: #Left button
+                self.firing = False
             
         elif event.type == pygame.KEYDOWN:
             self.handleKey(event.key, True)
@@ -572,7 +595,10 @@ class MinimalDeathmatch(gameEngine.Game):
                 
             elif event.key == gameEngine.key("m"):
                 self.toggleMute()
-            
+                
+            elif event.key == gameEngine.key("tab"):
+                self.player.clickAndHold = not self.player.clickAndHold
+                
         self.player.handleEvent(event)
         
     def toggleMute(self, vol = 0.5):

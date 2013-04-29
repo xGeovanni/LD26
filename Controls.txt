@@ -1,4 +1,5 @@
 WASD / Arrows - Movement
 Click - shoot
 ESC - minimise game window
-M - toggle mute
+Tab - toggle between click-and-hold or click-to-fire shooting.
+M - toggle sound on / off
